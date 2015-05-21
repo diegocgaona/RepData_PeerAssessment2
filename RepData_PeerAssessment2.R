@@ -1,4 +1,5 @@
 require("dplyr")
+require("tidyr")
 ## Set to english language and time
 Sys.setlocale("LC_TIME", "English")
 ## Download and read the data
@@ -37,11 +38,49 @@ colnames(data) <- c("begin_date","state","event_type","fatalities","injuries",
 
 ## Transform the date variables in Posix format
 data$begin_date <- as.Date(strptime(data$begin_date, format = "%m/%d/%Y %H:%M:%S"))  
-data$begin_year <- as.factor(format(data$begin_date,format="%Y"))
+data$begin_date <- as.factor(format(data$begin_date,format="%Y")) ## I will use only the year
 
 ## View(data %>% group_by(state,event_type) %>% summarise(n=n()))
-## SUbset to only use the util data for this analysis
-subdata <- data[c(1,3,4,5,6,8,11)]
+## For this analysis, i will not use all the columns (i will mantain them only for future analysis)
+## Now i will Subset to only use the util data for this analysis
+subdata <- data[c(1,3,4,5,6,8)]
+
 ## Convert all the event_types to factor and uppercase to reduce the mistyped errors
 subdata$event_type <- factor(toupper(as.character(subdata$event_type)))
+
+# Now i subset for only the data with fatalities, injuries, property or crop damage.
+subdata <- subset(subdata, fatalities > 0 | injuries > 0 | property_damage > 0 | crop_damage > 0,
+                  select=begin_date:crop_damage)
+
+## I investigate the evtypes by searching some event type words found in Storm Data Event Table.
+## How many variables contain these words, which of them i can categorize as the same?
+## teste <- subdata[grep("AVALAN", subdata$event_type),]
+## teste <- as.data.frame(as.character(unique(teste$event_type)))
+## View(teste)
+
+## Replaces: Ex. Replace all that contains "FLOOD" (FLASH FLOOD and others) by exactly "FLOOD" 
+## The order is important, because the replacement is sequencial. Example, some events have: 
+## "WIND" and "THUNDERSTORM", i prioritized "THUNDERSTORM" before wind.
+subdata$event_type[grepl("TORNADO", subdata$event_type)] <- "TORNADO"
+subdata$event_type[grepl("HURRICANE", subdata$event_type)] <- "HURRICANE"
+subdata$event_type[grepl("FLOOD", subdata$event_type)] <- "FLOOD"
+subdata$event_type[grepl("BLIZZARD", subdata$event_type)] <- "BLIZZARD"
+subdata$event_type[grepl("DROUGHT", subdata$event_type)] <- "DROUGHT"
+subdata$event_type[grepl("HEAT", subdata$event_type)] <- "HEAT"
+subdata$event_type[grepl("AVALANC", subdata$event_type)] <- "AVALANCHE"
+subdata$event_type[grepl("COLD", subdata$event_type)] <- "COLD"
+subdata$event_type[grepl("THUN.*.ORM|TSTM|THUN.*.TROM", subdata$event_type)] <- "THUNDERSTORM"
+subdata$event_type[grepl("TROPICAL STORM", subdata$event_type)] <- "TROPICAL STORM"
+subdata$event_type[grepl("SNOW", subdata$event_type)] <- "SNOW"
+subdata$event_type[grepl("WIND", subdata$event_type)] <- "WIND"
+subdata$event_type[grepl("HAIL", subdata$event_type)] <- "HAIL"
+subdata$event_type[grepl("LIGHTNING", subdata$event_type)] <- "LIGHTNING"
+subdata$event_type[grepl("RAIN", subdata$event_type)] <- "RAIN"
+subdata$event_type[grepl("FROST|FREEZE", subdata$event_type)] <- "FROST/FREEZE"
+## Create a column with the sum of fatalities and injuries
+summhealth <- mutate(subdata, health = fatalities + injuries)
+## Subset the data to show only the events harmfull to health and summarize the data by event type.
+summhealth <- aggregate(health ~ event_type, summhealth[which(summhealth$health != 0),],
+                        sum, na.action = na.pass)
+
 
