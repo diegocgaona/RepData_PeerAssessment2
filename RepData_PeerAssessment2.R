@@ -1,5 +1,7 @@
 require("dplyr")
 require("tidyr")
+require("ggplot2")
+require("reshape2")
 ## Set to english language and time
 Sys.setlocale("LC_TIME", "English")
 ## Download and read the data
@@ -77,10 +79,60 @@ subdata$event_type[grepl("HAIL", subdata$event_type)] <- "HAIL"
 subdata$event_type[grepl("LIGHTNING", subdata$event_type)] <- "LIGHTNING"
 subdata$event_type[grepl("RAIN", subdata$event_type)] <- "RAIN"
 subdata$event_type[grepl("FROST|FREEZE", subdata$event_type)] <- "FROST/FREEZE"
+subdata$event_type = gsub("WILDFIRE|WILDFIRES|WILD///FOREST FIRE|WILD FIRES", "FIRE", subdata$event_type)
 ## Create a column with the sum of fatalities and injuries
 summhealth <- mutate(subdata, health = fatalities + injuries)
-## Subset the data to show only the events harmfull to health and summarize the data by event type.
-summhealth <- aggregate(health ~ event_type, summhealth[which(summhealth$health != 0),],
+## Subset the data to show only the events harmful to health and summarize the data by event type.
+summhealth <- aggregate(cbind(fatalities, injuries, health) ~ event_type, summhealth[which(summhealth$health != 0),],
                         sum, na.action = na.pass)
+## Arrange to descend by the more harmful events
+summhealth <- arrange(summhealth, desc(health))
 
+## Create a column with the sum of property_damage and crop_damage
+summeconon <- mutate(subdata, economic = property_damage + crop_damage)
+## Subset the data to show only the events with economic consequences and summarize the data by event type.
+summeconon <- aggregate(cbind(property_damage, crop_damage, economic) ~ event_type, summeconon[which(summeconon$economic != 0),],
+                        sum, na.action = na.pass)
+summeconon <- arrange(summeconon, desc(economic))
+
+## Make a general summary only to explore the data
+summ <- mutate(subdata, importance = fatalities + injuries + property_damage + crop_damage)
+summ <- aggregate(cbind(fatalities, injuries, property_damage, crop_damage, importance) ~ 
+                        event_type, summ[which(summ$importance != 0),],
+                        sum, na.action = na.pass)
+summ <- arrange(summ, desc(importance))
+
+teste <- melt(summhealth,id=c("event_type"),measure.vars= c("fatalities", "injuries","health"))
+teste <- summhealth
+teste <- cbind(teste, summhealth$health)
+colnames(teste) <- c("event_type", "variable", "value", "health")
+teste <- group_by(teste,event_type)
+teste <- arrange(teste,desc(fatalities))
+
+p2 <- ggplot(summhealth[c(1:10), c(1:4)], aes(x = event_type, y = health, fill = -health)) + 
+      geom_bar(stat = "identity") +
+      scale_fill_gradient("Health damage") +
+      xlab("Weather event type") + ylab("Health damage") +
+      ggtitle ("Top 10 weather events types causing health harmful") +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1, face="bold")) +
+      theme(plot.title = element_text(lineheight=.8, face="bold")) +
+      theme(axis.title.x = element_text(lineheight=.8, face="bold")) +
+      theme(axis.title.y = element_text(lineheight=.8, face="bold"))            
+p2
+
+
+
+p2 <- ggplot(teste[c(1:10), c(1:3)], reorder(event_type, value), aes(x = event_type, y = health, fill = variable)) + 
+      geom_bar(stat = "identity") +
+      facet_grid(variable ~., ncol = 1)
+p2
+#scale_fill_gradient("Health damage") +
+xlab("Weather event type") + ylab("Health damage") +
+      ggtitle ("Top 10 weather events types causing health harmful") +
+      theme(axis.text.x = element_text(angle = 90, hjust = 1, face="bold")) +
+      theme(plot.title = element_text(lineheight=.8, face="bold")) +
+      theme(axis.title.x = element_text(lineheight=.8, face="bold")) +
+      theme(axis.title.y = element_text(lineheight=.8, face="bold")) #+
+#+
+#scale_x_discrete(breaks = seq(1960, 2050, by=2)) +
 
