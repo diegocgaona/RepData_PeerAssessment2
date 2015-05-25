@@ -1,3 +1,27 @@
+---
+title: "Analysis about weather events can cause both public health and economic problems"
+author: "Diego Gaona"
+date: "Saturday, May 23, 2015"
+output: 
+  html_document:
+    keep_md: true
+---
+##Synopsis
+This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+The events in the database start in the year 1950 and end in November 2011. In the earlier years of the database there are generally fewer events recorded, most likely due to a lack of good records. More recent years should be considered more complete.
+The basic goal of this analysis is to explore the NOAA Storm Database and answer some basic questions about severe weather events:
+Across the United States, which types of events are most harmful with respect to population health? (injuries and fatalities)
+Across the United States, which types of events have the greatest economic consequences? (property damage and crop damage)
+
+##Data Processing
+I'm using R Version 3.1.3 with RStudio Version 0.98.1103.
+First I load the necessary packages for my analysis, and then download and read the FStormData.csv.bz2 data with read.csv.
+Because i'm in another country, i set the time and language to english.
+```{r load, results='hide', message=FALSE, warning=FALSE}
+## Load the packages
+library(knitr)
+opts_chunk$set(echo = T, cache = TRUE)
+knitr::opts_chunk$set(tidy=FALSE, fig.path='figures/')
 require("dplyr")
 require("tidyr")
 require("ggplot2")
@@ -5,15 +29,22 @@ require("reshape2")
 ## Set to english language and time
 Sys.setlocale("LC_TIME", "English")
 ## Download and read the data
-fileURL <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+fileURL <- "http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+if (!file.exists("./datafile.csv.bz2")) {
+    download.file(fileUrl, destfile = "./datafile.csv.bz2")
+}
 zipdatafile <- "./datafile.csv.bz2" ## create zipdata file
-download.file(fileURL, destfile = zipdatafile, mode = "wb") ## download the file
+
 rawdata <- read.csv(zipdatafile, header = TRUE, stringsAsFactors = FALSE)
+```
+Now i visualize the first 10 rows of data to explore the raw data
+```{r head}
 head(rawdata)
-## View(rawdata %>% group_by(EVTYPE) %>% summarise(n=n()))
-
+```
+After i see the rawdata, i know the data have many columns I don't need for my analysis.
+Now i load the data that will be more interesting in this analysis (some for a future analysis), and i transform the exponencial data from PROPDMGEXP and PROPDMGEXP into numeric.
+```{r dataexp}
 data <- rawdata[c(2,7,8,23,24,25,26,27,28,37)]
-
 ## Replace the exponencials letters by numbers in the columns "PROPDMGEXP" and "CROPDMGEXP"
 ## Replace the letters by numbers
 data$PROPDMGEXP = gsub("\\-|\\+|\\?|h|H|0","0",data$PROPDMGEXP)
@@ -22,7 +53,6 @@ data$PROPDMGEXP = gsub("m|M", "1000000", data$PROPDMGEXP)
 data$PROPDMGEXP = gsub("b|B", "1000000000", data$PROPDMGEXP)
 data$PROPDMGEXP <- as.numeric(data$PROPDMGEXP)
 data$PROPDMGEXP[is.na(data$PROPDMGEXP)] = 0
-
 data$CROPDMGEXP <- as.character(data$CROPDMGEXP)
 data$CROPDMGEXP = gsub("\\-|\\+|\\?|h|H|0","0",data$CROPDMGEXP)
 data$CROPDMGEXP = gsub("k|K", "1000", data$CROPDMGEXP)
@@ -30,36 +60,30 @@ data$CROPDMGEXP = gsub("m|M", "1000000", data$CROPDMGEXP)
 data$CROPDMGEXP = gsub("b|B", "1000000000", data$CROPDMGEXP)
 data$CROPDMGEXP <- as.numeric(data$CROPDMGEXP)
 data$CROPDMGEXP[is.na(data$CROPDMGEXP)] = 0
-
+```
+Now I start to refine the data, got the damages multiplicated by their exponencials, renemo the columns to more tidy names, transform the date column in date format (i will not use in this analysis, but I want to leave the data in the right way for the future)
+```{r datarefine}
 ## Multiply the damages values by the exponents
 data <- mutate(data, PROPDMG = PROPDMGEXP * PROPDMG) 
 data <- mutate(data, CROPDMG = CROPDMGEXP * CROPDMG) 
-
+## Rename the columns
 colnames(data) <- c("begin_date","state","event_type","fatalities","injuries",
                     "property_damage","property_damage_exp","crop_damage","crop_damage_exp","reference_number")
-
 ## Transform the date variables in Posix format
 data$begin_date <- as.Date(strptime(data$begin_date, format = "%m/%d/%Y %H:%M:%S"))  
 data$begin_date <- as.factor(format(data$begin_date,format="%Y")) ## I will use only the year
-
-## View(data %>% group_by(state,event_type) %>% summarise(n=n()))
-## For this analysis, i will not use all the columns (i will mantain them only for future analysis)
-## Now i will Subset to only use the util data for this analysis
+```
+Now I subset my data to the data i need to this analysis. I will remove some columns, convert all the "event_types" column to uppercase and get only the rows with fatalities, injuries, property or crop damage.
+```{r subdata1}
 subdata <- data[c(1,3,4,5,6,8)]
-
 ## Convert all the event_types to factor and uppercase to reduce the mistyped errors
 subdata$event_type <- factor(toupper(as.character(subdata$event_type)))
-
 # Now i subset for only the data with fatalities, injuries, property or crop damage.
 subdata <- subset(subdata, fatalities > 0 | injuries > 0 | property_damage > 0 | crop_damage > 0,
                   select=begin_date:crop_damage)
-
-## I investigate the evtypes by searching some event type words found in Storm Data Event Table.
-## How many variables contain these words, which of them i can categorize as the same?
-## teste <- subdata[grep("AVALAN", subdata$event_type),]
-## teste <- as.data.frame(as.character(unique(teste$event_type)))
-## View(teste)
-
+```
+To explore the current subdata, i used `r teste <- as.data.frame(as.character(unique(subdata$event_type)))` to view my unique event types. After that (and by reading the documentantion in NOAA website) i have a idea about what event types i need to rename to improve the results and reduce the missleads.
+```{r subdata2}
 ## Replaces: Ex. Replace all that contains "FLOOD" (FLASH FLOOD and others) by exactly "FLOOD" 
 ## The order is important, because the replacement is sequencial. Example, some events have: 
 ## "WIND" and "THUNDERSTORM", i prioritized "THUNDERSTORM" before wind.
@@ -80,35 +104,23 @@ subdata$event_type[grepl("LIGHTNING", subdata$event_type)] <- "LIGHTNING"
 subdata$event_type[grepl("RAIN", subdata$event_type)] <- "RAIN"
 subdata$event_type[grepl("FROST|FREEZE", subdata$event_type)] <- "FROST/FREEZE"
 subdata$event_type = gsub("WILDFIRE|WILDFIRES|WILD///FOREST FIRE|WILD FIRES", "FIRE", subdata$event_type)
+```
+Now i create a column with the sums of the health damages (injuries + fatalities) and another with the sums of damages (property damage + crop damage) and order by the mostly harmful and more economic dangerous.
+```{r subdata3}
 ## Create a column with the sum of fatalities and injuries
 summhealth <- mutate(subdata, health = fatalities + injuries)
 ## Subset the data to show only the events harmful to health and summarize the data by event type.
-summhealth <- aggregate(cbind(fatalities, injuries, health) ~ event_type, summhealth[which(summhealth$health != 0),],
-                        sum, na.action = na.pass)
+summhealth <- aggregate(cbind(fatalities, injuries, health) ~ event_type, summhealth[which(summhealth$health != 0),], sum, na.action = na.pass)
 ## Arrange to descend by the more harmful events
 summhealth <- arrange(summhealth, desc(health))
-
-## Create a column with the sum of property_damage and crop_damage
+## Do the same about the economic damages
 summeconon <- mutate(subdata, economic = property_damage + crop_damage)
-## Subset the data to show only the events with economic consequences and summarize the data by event type.
-summeconon <- aggregate(cbind(property_damage, crop_damage, economic) ~ event_type, summeconon[which(summeconon$economic != 0),],
-                        sum, na.action = na.pass)
+summeconon <- aggregate(cbind(property_damage, crop_damage, economic) ~ event_type, summeconon[which(summeconon$economic != 0),], sum, na.action = na.pass)
 summeconon <- arrange(summeconon, desc(economic))
-
-## Make a general summary only to explore the data
-summ <- mutate(subdata, importance = fatalities + injuries + property_damage + crop_damage)
-summ <- aggregate(cbind(fatalities, injuries, property_damage, crop_damage, importance) ~ 
-                        event_type, summ[which(summ$importance != 0),],
-                        sum, na.action = na.pass)
-summ <- arrange(summ, desc(importance))
-
-teste <- melt(summhealth,id=c("event_type"),measure.vars= c("fatalities", "injuries","health"))
-teste <- summhealth
-teste <- cbind(teste, summhealth$health)
-colnames(teste) <- c("event_type", "variable", "value", "health")
-teste <- group_by(teste,event_type)
-teste <- arrange(teste,desc(fatalities))
-
+```
+## Results
+My results are show in the plots bellow, that first plot shows the top 10 greater health harmful weather events.
+```{r plothealth}
 p2 <- ggplot(summhealth[c(1:10), c(1:4)], aes(x = event_type, y = health, fill = -health)) + 
       geom_bar(stat = "identity") +
       scale_fill_gradient("Health damage") +
@@ -119,30 +131,17 @@ p2 <- ggplot(summhealth[c(1:10), c(1:4)], aes(x = event_type, y = health, fill =
       theme(axis.title.x = element_text(lineheight=.8, face="bold")) +
       theme(axis.title.y = element_text(lineheight=.8, face="bold"))            
 p2
-
+```
+My results are show in the plots bellow, that second plot shows the top 10 greater economic dangerous  weather events.
+```{r ploteconomic}
 p2 <- ggplot(summeconon[c(1:10), c(1:4)], aes(x = event_type, y = economic, fill = -economic)) + 
       geom_bar(stat = "identity") +
       scale_fill_gradient("Economic consequences") +
       xlab("Weather event type") + ylab("Economic consequence") +
-      ggtitle ("Top 10 weather events types causing economic consequences") +
+      ggtitle ("Top 10 weather events types causing economic damage") +
       theme(axis.text.x = element_text(angle = 90, hjust = 1, face="bold")) +
       theme(plot.title = element_text(lineheight=.8, face="bold")) +
       theme(axis.title.x = element_text(lineheight=.8, face="bold")) +
       theme(axis.title.y = element_text(lineheight=.8, face="bold"))            
 p2
-
-
-p2 <- ggplot(teste[c(1:10), c(1:3)], reorder(event_type, value), aes(x = event_type, y = health, fill = variable)) + 
-      geom_bar(stat = "identity") +
-      facet_grid(variable ~., ncol = 1)
-p2
-#scale_fill_gradient("Health damage") +
-xlab("Weather event type") + ylab("Health damage") +
-      ggtitle ("Top 10 weather events types causing health harmful") +
-      theme(axis.text.x = element_text(angle = 90, hjust = 1, face="bold")) +
-      theme(plot.title = element_text(lineheight=.8, face="bold")) +
-      theme(axis.title.x = element_text(lineheight=.8, face="bold")) +
-      theme(axis.title.y = element_text(lineheight=.8, face="bold")) #+
-#+
-#scale_x_discrete(breaks = seq(1960, 2050, by=2)) +
-
+```
