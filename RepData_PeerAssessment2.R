@@ -2,6 +2,7 @@ require("dplyr")
 require("tidyr")
 require("ggplot2")
 require("reshape2")
+library("gridExtra")
 ## Set to english language and time
 Sys.setlocale("LC_TIME", "English")
 ## Download and read the data
@@ -109,40 +110,76 @@ colnames(teste) <- c("event_type", "variable", "value", "health")
 teste <- group_by(teste,event_type)
 teste <- arrange(teste,desc(fatalities))
 
-p2 <- ggplot(summhealth[c(1:10), c(1:4)], aes(x = event_type, y = health, fill = -health)) + 
+p1 <- ggplot(summhealth[c(1:10), c(1:4)], aes(x=reorder(event_type, health), y = health, fill = -health)) + 
       geom_bar(stat = "identity") +
-      scale_fill_gradient("Health damage") +
+      #scale_fill_gradient("Health damage") +
       xlab("Weather event type") + ylab("Health damage") +
-      ggtitle ("Top 10 weather events types causing health harmful") +
-      theme(axis.text.x = element_text(angle = 90, hjust = 1, face="bold")) +
+      ggtitle ("Weather events types causing health harmful (Injuries + Fatalities)") +
+      theme(axis.text.x = element_text(hjust = 1, face="bold")) +
+      theme(axis.text.y = element_text(hjust = 1, face="bold", size = 8)) +
       theme(plot.title = element_text(lineheight=.8, face="bold")) +
       theme(axis.title.x = element_text(lineheight=.8, face="bold")) +
-      theme(axis.title.y = element_text(lineheight=.8, face="bold"))            
-p2
+      theme(axis.title.y = element_text(lineheight=.8, face="bold")) +
+      coord_flip()
+p2 <- ggplot(summhealth[c(1:10), c(1:4)], aes(x=reorder(event_type, fatalities), y = fatalities, fill = -fatalities)) + 
+      geom_bar(stat = "identity") +
+      #scale_fill_gradient("Fatalities") +
+      xlab("Weather event type") + ylab("Fatalities") +
+      ggtitle ("Weather events types causing deaths") +
+      theme(axis.text.x = element_text(hjust = 1, face="bold")) +
+      theme(axis.text.y = element_text(hjust = 1, face="bold", size = 8)) +
+      theme(plot.title = element_text(lineheight=.8, face="bold")) +
+      theme(axis.title.x = element_text(lineheight=.8, face="bold")) +
+      theme(axis.title.y = element_text(lineheight=.8, face="bold")) +
+      coord_flip()
+p3 <- ggplot(summhealth[c(1:10), c(1:4)], aes(x=reorder(event_type, injuries), y = injuries, fill = -injuries)) + 
+      geom_bar(stat = "identity") +
+      #scale_fill_gradient("Injuries") +
+      xlab("Weather event type") + ylab("Injuries") +
+      ggtitle ("Weather events types causing injuries") +
+      theme(axis.text.x = element_text(hjust = 1, face="bold")) +
+      theme(axis.text.y = element_text(hjust = 1, face="bold", size = 8)) +
+      theme(plot.title = element_text(lineheight=.8, face="bold")) +
+      theme(axis.title.x = element_text(lineheight=.8, face="bold")) +
+      theme(axis.title.y = element_text(lineheight=.8, face="bold")) +
+      coord_flip()
+grid.arrange(arrangeGrob(p1, nrow=1),
+             arrangeGrob(p2,p3,nrow=1), 
+             nrow = 2, main=textGrob("Top 10 weather events causing health harmful (1950-2011)",gp=gpar(fontsize=16, fontface = "bold")))
 
-p2 <- ggplot(summeconon[c(1:10), c(1:4)], aes(x = event_type, y = economic, fill = -economic)) + 
+g1 <- ggplot(summeconon[c(1:10), c(1:4)], aes(x=reorder(event_type, economic), y = economic, fill = -economic)) + 
       geom_bar(stat = "identity") +
       scale_fill_gradient("Economic consequences") +
       xlab("Weather event type") + ylab("Economic consequence") +
-      ggtitle ("Top 10 weather events types causing economic consequences") +
-      theme(axis.text.x = element_text(angle = 90, hjust = 1, face="bold")) +
+      ggtitle ("Weather events types causing economic consequence (Property + Crop Damage)") +
+      theme(axis.text.x = element_text(hjust = 1, face="bold")) +
+      theme(axis.text.y = element_text(hjust = 1, face="bold", size = 8)) +
       theme(plot.title = element_text(lineheight=.8, face="bold")) +
       theme(axis.title.x = element_text(lineheight=.8, face="bold")) +
-      theme(axis.title.y = element_text(lineheight=.8, face="bold"))            
-p2
-
-
-p2 <- ggplot(teste[c(1:10), c(1:3)], reorder(event_type, value), aes(x = event_type, y = health, fill = variable)) + 
+      theme(axis.title.y = element_text(lineheight=.8, face="bold"))  +
+      coord_flip()           
+g2 <- ggplot(summeconon[c(1:10), c(1:4)], aes(x=reorder(event_type, property_damage), y = property_damage, fill = -property_damage)) + 
       geom_bar(stat = "identity") +
-      facet_grid(variable ~., ncol = 1)
-p2
-#scale_fill_gradient("Health damage") +
-xlab("Weather event type") + ylab("Health damage") +
-      ggtitle ("Top 10 weather events types causing health harmful") +
-      theme(axis.text.x = element_text(angle = 90, hjust = 1, face="bold")) +
+      scale_fill_gradient("Property Damage") +
+      xlab("Weather event type") + ylab("Property Damage") +
+      ggtitle ("Weather events causing property damage") +
+      theme(axis.text.x = element_text(hjust = 1, face="bold")) +
+      theme(axis.text.y = element_text(hjust = 1, face="bold", size = 8)) +
       theme(plot.title = element_text(lineheight=.8, face="bold")) +
       theme(axis.title.x = element_text(lineheight=.8, face="bold")) +
-      theme(axis.title.y = element_text(lineheight=.8, face="bold")) #+
-#+
-#scale_x_discrete(breaks = seq(1960, 2050, by=2)) +
-
+      theme(axis.title.y = element_text(lineheight=.8, face="bold")) +
+      coord_flip()
+g3 <- ggplot(summeconon[c(1:10), c(1:4)], aes(x=reorder(event_type, crop_damage), y = crop_damage, fill = -crop_damage)) + 
+      geom_bar(stat = "identity") +
+      scale_fill_gradient("Crop Damage") +
+      xlab("Weather event type") + ylab("Crop Damage") +
+      ggtitle ("Weather events types causing crop damage") +
+      theme(axis.text.x = element_text(hjust = 1, face="bold")) +
+      theme(axis.text.y = element_text(hjust = 1, face="bold", size = 8)) +
+      theme(plot.title = element_text(lineheight=.8, face="bold")) +
+      theme(axis.title.x = element_text(lineheight=.8, face="bold")) +
+      theme(axis.title.y = element_text(lineheight=.8, face="bold")) +
+      coord_flip()
+grid.arrange(arrangeGrob(g1, nrow=1),
+             arrangeGrob(g2,g3,nrow=1), 
+             nrow = 2, main=textGrob("Top 10 weather events with greater economic consequences (1950-2011)",gp= gpar(fontsize=16, fontface = "bold")))
